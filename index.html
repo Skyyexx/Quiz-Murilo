@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz do Murilo</title>
+<style>
+  @font-face { font-family: "Determination"; src: url("fonts/determination.ttf") format("truetype"); }
+  :root { --yellow: #ffff00; --red: #d40000; --green: #00d000; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #000; color: #fff; min-height: 100vh; padding: 0;
+    font-family: "Determination", "Courier New", monospace; font-size: 20px; line-height: 1.3; }
+  main { max-width: 640px; min-height: 100vh; margin: 0 auto; padding: 84px 14px 124px; background: #000; }
+  img { image-rendering: pixelated; }
+  .mewbox { display: flex; align-items: center; gap: 20px; min-height: 176px; margin-bottom: 12px; }
+  .mewbox > img { max-height: 176px; max-width: 40%; }
+  .speech { position: relative; flex: none; width: fit-content; margin: 6px 0 0 34px; align-self: flex-start; }
+  .speech .tail { position: absolute; left: -29px; top: 10px; width: 30px; }
+  .bubble { box-sizing: content-box; min-height: 22px; border: 14px solid transparent; border-image: url("img/balao.png") 7 fill / 14px stretch;
+    color: #000; font-size: 18px; line-height: 1.2; image-rendering: pixelated; }
+  .measure { position: absolute; left: -9999px; top: 0; visibility: hidden; width: max-content; max-width: 250px; font-size: 18px; line-height: 1.2; }
+  @media (max-width: 560px) { .mewbox { flex-direction: column; } .mewbox > img { max-width: 60%; } .speech { margin: 0; align-self: center; } .speech .tail { display: none; } }
+  .box { background: #000; border: 6px solid #fff; padding: 18px 20px; }
+  .box p { margin: 0 0 12px; }
+  .arena { position: relative; background: #000; border: 6px solid #fff; height: min(52vh, 330px); min-height: 250px; touch-action: none; overflow: hidden; cursor: none; }
+  .cells { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; }
+  .cell { border: 2px solid #3a3a3a; padding: 10px 12px; display: flex; align-items: center; gap: 10px; font-size: clamp(17px, 4.2vw, 24px); }
+  .cell b { color: var(--yellow); font-weight: normal; }
+  .cell.sel { background: #2a2a2a; color: var(--yellow); }
+  .cell.correct { background: #064d12; color: var(--green); }
+  .cell.wrong { background: #5a0a0a; color: #ff5b5b; }
+  .heart { position: absolute; left: 0; top: 0; width: 24px; height: 24px; z-index: 2; pointer-events: none; }
+  .stats { background: rgba(0,0,0,.65); padding: 6px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-top: 12px; }
+  .timer { width: 110px; height: 20px; background: var(--red); display: inline-block; vertical-align: middle; }
+  .timer i { display: block; height: 100%; width: 100%; background: var(--yellow); }
+  .btn { font: inherit; font-size: 22px; color: #000; background: #fff; border: 0; padding: 6px 18px; cursor: pointer; margin-top: 8px; }
+  .btn:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+  .big { font-size: clamp(32px, 9vw, 52px); margin: 6px 0 10px; color: var(--yellow); }
+  .mute { position: fixed; right: 10px; bottom: 10px; font: inherit; font-size: 16px; color: #fff; background: #000; border: 3px solid #fff; padding: 6px 10px; cursor: pointer; z-index: 60; }
+  /* Plateia da batalha da Pink: dummies e bastões de luz (aparecem em 0:41 da música) */
+  :root { --beat: 1s; }
+  .crowd { position: fixed; left: 0; right: 0; overflow: hidden; pointer-events: none; z-index: 5; transition: transform 1s ease-out; }
+  .crowd.top { top: 0; height: 76px; --dy: 6px; transform: translateY(-110%); }
+  .crowd.bottom { bottom: 0; height: 120px; --dy: -10px; transform: translateY(110%); }
+  .crowd.on { transform: none; }
+  .d { position: absolute; background-repeat: no-repeat; image-rendering: pixelated; }
+  .cab { width: 122px; height: 76px; bottom: -28px; z-index: 1; background-image: url("img/plateia/cabeca.png"); background-size: 976px 76px;
+    animation: cab 1.2s steps(8) var(--f, 0s) infinite, bob var(--beat) var(--b, 0s) infinite; }
+  .bas { width: 64px; height: 92px; bottom: 14px; z-index: 2; background-image: url("img/plateia/bastao.png"); background-size: 256px 92px;
+    animation: bas .8s steps(4) var(--f, 0s) infinite, bob var(--beat) var(--b, 0s) infinite; }
+  .dm { width: 50px; height: 66px; top: 4px; background-image: url("img/plateia/fundo-dummy.png"); background-size: 50px 66px; animation: bob var(--beat) var(--b, 0s) infinite; }
+  .db { width: 40px; height: 36px; top: 30px; transform-origin: 20% 85%; background-image: url("img/plateia/fundo-bastao.png"); background-size: 40px 36px; animation: swing var(--beat) var(--b, 0s) infinite; }
+  @keyframes cab { to { background-position: -976px 0; } }
+  @keyframes bas { to { background-position: -256px 0; } }
+  @keyframes swing { 0%, 49% { transform: translateY(0) rotate(var(--r1, -20deg)); } 50%, 100% { transform: translateY(var(--dy)) rotate(var(--r2, 0deg)); } }
+  @keyframes bob { 0%, 49% { transform: translateY(0); } 50%, 100% { transform: translateY(var(--dy)); } }
+  @media (prefers-reduced-motion: reduce) { .crowd { transition: none; } .d { animation: none; } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="measure" id="measure" aria-hidden="true"></div>
+<div class="crowd top" id="crowdTop" aria-hidden="true"></div>
+<div class="crowd bottom" id="crowdBottom" aria-hidden="true"></div>
+<audio id="music" src="musica.mp3" loop preload="auto"></audio>
+<main>
+  <div class="mewbox">
+    <img id="mew" alt="Mad Mew Mew" src="img/mewmew-battle.gif">
+    <div class="speech"><img class="tail" src="img/balao-cauda.png" alt=""><div class="bubble" id="bubble" aria-live="polite"></div></div>
+  </div>
+
+  <section id="start" class="box">
+    <p>* São 50 perguntas sobre o Murilo, sorteadas e embaralhadas a cada partida. Enquanto a Mad Mew Mew fala, mova o coração com as setas ou WASD (ou arrastando o dedo) e fique em cima da resposta que você acha certa.</p>
+    <p>* Você tem 5 segundos depois da pergunta. Quando o tempo acabar, vale a resposta em que o coração estiver.</p>
+    <button class="btn" id="startBtn">COMEÇAR</button>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="arena" id="arena">
+      <div class="cells" id="cells"></div>
+      <img class="heart" id="heart" src="img/heart.png" alt="">
+    </div>
+    <div class="stats">
+      <span>MURILO</span>
+      <span>ROUND <b id="round"></b></span>
+      <span><span class="timer"><i id="bar"></i></span> <b id="sec">5</b></span>
+      <span>ACERTOS <b id="hits">0</b></span>
+    </div>
+  </section>
+
+  <section id="end" class="box hidden">
+    <p>* Fim do programa! Você acertou:</p>
+    <div class="big" id="final"></div>
+    <button class="btn" id="restartBtn">JOGAR DE NOVO</button>
+  </section>
+</main>
+<button class="mute hidden" id="muteBtn">MÚSICA: ON</button>
+
+<script>
+  // Formato: ["pergunta", ["resposta certa", "errada", "errada", "errada"]]
+  // A resposta certa vai sempre PRIMEIRO; a ordem é embaralhada no jogo.
+  const Q = [
+    ["Qual é o número favorito do Murilo?", ["7","3","13","21"]],
+    ["Qual é a cor favorita do Murilo?", ["Azul","Verde","Vermelho","Roxo"]],
+    ["Qual é o animal favorito do Murilo?", ["Tubarão","Gato","Lobo","Polvo"]],
+    ["Qual é o signo do Murilo?", ["Capricórnio","Escorpião","Gêmeos","Leão"]],
+    ["Qual é o MBTI do Murilo?", ["ENTP","INFJ","ESFP","INTJ"]],
+    ["Qual é o arcano do Murilo?", ["A Estrela","O Louco","A Lua","O Mago"]],
+    ["Qual é o mês favorito do Murilo?", ["Dezembro","Julho","Outubro","Janeiro"]],
+    ["Qual é a estação favorita do Murilo?", ["Inverno","Verão","Outono","Primavera"]],
+    ["Qual é o dia da semana favorito do Murilo?", ["Sexta","Sábado","Segunda","Domingo"]],
+    ["Qual é o hobby principal do Murilo?", ["Jogar","Desenhar","Cozinhar","Pescar"]],
+    ["Em que mês o Murilo faz aniversário?", ["Dezembro","Março","Junho","Setembro"]],
+    ["Qual é o elemento favorito do Murilo?", ["Água","Fogo","Terra","Ar"]],
+    ["Qual é o esporte favorito do Murilo?", ["Nenhum","Futebol","Basquete","Vôlei"]],
+    ["Qual é o eneagrama do Murilo?", ["2w1","5w4","7w8","9w1"]],
+    ["Qual é a comida favorita do Murilo?", ["Sushi","Strogonoff","Lasanha","Pastel"]],
+    ["Qual é a bebida favorita do Murilo?", ["Energético","Suco de uva","Guaraná","Café gelado"]],
+    ["Qual é o sabor de sorvete favorito do Murilo?", ["Ovomaltine","Flocos","Chocolate","Morango"]],
+    ["Qual é o sabor de pizza favorito do Murilo?", ["Frango com catupiry","Calabresa","Marguerita","Portuguesa"]],
+    ["Qual comida o Murilo não suporta?", ["Cebola roxa","Brócolis","Jiló","Beterraba"]],
+    ["Qual é o doce favorito do Murilo?", ["Mochi","Brigadeiro","Pudim","Churros"]],
+    ["Qual é o salgadinho favorito do Murilo?", ["Pringles","Doritos","Cheetos","Ruffles"]],
+    ["Qual é o café da manhã ideal do Murilo?", ["Waffle","Pão com ovo","Tapioca","Panqueca"]],
+    ["Qual é o fast food favorito do Murilo?", ["Burger King","McDonald's","Subway","Bob's"]],
+    ["Qual é a fruta favorita do Murilo?", ["Pitaya","Manga","Morango","Uva"]],
+    ["Qual é o anime favorito do Murilo?", ["One Piece","Naruto","Death Note","Dragon Ball"]],
+    ["Quem é o personagem de anime favorito do Murilo?", ["Sanji","Zoro","Luffy","Gojo"]],
+    ["Qual é a série favorita do Murilo?", ["Bridgerton","Stranger Things","Wandinha","The Boys"]],
+    ["Qual é o filme favorito do Murilo?", ["Detona Ralph","Shrek","Divertida Mente","Moana"]],
+    ["Qual era o desenho favorito do Murilo na infância?", ["Gravity Falls","Hora de Aventura","Ben 10","Bob Esponja"]],
+    ["Qual é o cantor favorito do Murilo?", ["bbno$","Eminem","The Weeknd","Imagine Dragons"]],
+    ["Qual é a música favorita do Murilo?", ["Bernadette, do IAMX","Sweater Weather","Blinding Lights","Believer"]],
+    ["Qual é o youtuber favorito do Murilo?", ["Scottonauta","Felipe Neto","Authentic Games","Jazzghost"]],
+    ["Qual app o Murilo mais usa no celular?", ["TikTok","Instagram","WhatsApp","YouTube"]],
+    ["Qual é a rede social favorita do Murilo?", ["Discord","Twitter/X","Instagram","Reddit"]],
+    ["Qual é o jogo favorito do Murilo?", ["Minecraft","Fortnite","GTA V","Free Fire"]],
+    ["Qual é o jogo favorito do Murilo sem contar Minecraft?", ["Terraria","Stardew Valley","Hollow Knight","Among Us"]],
+    ["Qual é o mob favorito do Murilo no Minecraft?", ["Cubo de enxofre","Creeper","Enderman","Warden"]],
+    ["Qual é a versão favorita do Murilo no Minecraft?", ["1.12.2","1.8.9","1.16.5","1.20.1"]],
+    ["Qual é a plataforma favorita do Murilo pra jogar?", ["PC","Celular","PlayStation","Xbox"]],
+    ["Qual é o jogo que o Murilo mais jogou na vida?", ["Minecraft","Fortnite","Among Us","Free Fire"]],
+    ["Qual é o estilo de jogo favorito do Murilo?", ["Indie","Tiro em primeira pessoa","Corrida","Esporte"]],
+    ["O Murilo é mais...", ["Ambivertido","Introvertido","Extrovertido","Depende da internet"]],
+    ["O Murilo é mais pessoa de...", ["Noite","Manhã","Tarde","Madrugada"]],
+    ["O Murilo prefere...", ["Praia","Montanha","Campo","Cidade grande"]],
+    ["O Murilo prefere...", ["Frio","Calor","Tanto faz","Calor extremo"]],
+    ["O Murilo prefere...", ["Gato","Cachorro","Hamster","Papagaio"]],
+    ["O Murilo prefere...", ["Salgado","Doce","Os dois","Nenhum"]],
+    ["Qual fobia o Murilo tem?", ["Talassofobia","Aracnofobia","Acrofobia","Claustrofobia"]],
+    ["Qual é a maior qualidade do Murilo?", ["Superdotação","Simpatia","Criatividade","Paciência"]],
+    ["Qual é o maior defeito do Murilo?", ["Preguiça","Teimosia","Ciúme","Ansiedade"]],
+    ["Qual superpoder o Murilo escolheria?", ["Energia vermelha","Voar","Ficar invisível","Teletransporte"]],
+    ["Qual é o maior sonho do Murilo?", ["Liberdade","Fama","Riqueza","Ter uma ilha"]],
+    ["Qual é a profissão dos sonhos do Murilo?", ["Biólogo","Médico","Programador","Ator"]],
+    ["Qual é o ascendente do Murilo?", ["Leão","Peixes","Virgem","Áries"]],
+    ["Qual é a matéria favorita do Murilo?", ["Biologia","História","Matemática","Artes"]],
+    ["Qual matéria o Murilo mais odeia?", ["Física","Química","Geografia","Português"]],
+    ["Quantas horas o Murilo dorme por noite, em média?", ["7","4","9","12"]],
+    ["Que horas o Murilo costuma ir dormir?", ["01h00","22h00","23h30","03h00"]],
+    ["O que o Murilo faz no tempo livre?", ["Joga","Desenha","Lê","Dorme"]],
+    ["Qual é o lugar favorito do Murilo?", ["Shopping","Parque","Cinema","Praia"]],
+    ["Qual é a viagem dos sonhos do Murilo?", ["Paris","Tóquio","Nova York","Roma"]],
+    ["Qual é o emoji mais usado pelo Murilo?", ["😈","😂","💀","😭"]],
+    ["Qual foi o primeiro emprego do Murilo?", ["Trabalhar pra youtuber","Atendente de loja","Entregador","Garçom"]],
+    ["Qual é o apelido do Murilo?", ["ERA PRA SER KENONIA","Muri","Lorena","Mumu"]],
+    ["Pizza ou hambúrguer?", ["Hambúrguer","Pizza"]],
+    ["Café ou chá?", ["Café","Chá"]],
+    ["Netflix ou YouTube?", ["YouTube","Netflix"]],
+    ["Celular ou PC?", ["PC","Celular"]],
+    ["Dia ou noite?", ["Noite","Dia"]],
+    ["Livro ou filme?", ["Desenho","Livro","Filme","Série"]],
+    ["Verão ou inverno?", ["Inverno","Verão"]],
+    ["Qual curiosidade sobre o Murilo quase ninguém sabe?", ["Ele tem vitiligo","Ele fala três idiomas","Ele já quebrou o braço","Ele toca violino"]],
+    ["Qual é o estilo de roupa do Murilo?", ["Usa o que gosta","Só moletom","Só streetwear","Só social"]],
+    ["Qual cor de roupa o Murilo mais usa?", ["Preto","Branco","Cinza","Azul-marinho"]],
+    ["Qual é o sabor de chiclete favorito do Murilo?", ["Mirtilo","Menta","Morango","Tutti-frutti"]],
+    ["Qual é o sabor de Pringles favorito do Murilo?", ["Churrasco","Original","Cebola","Queijo"]],
+    ["Qual é o energético favorito do Murilo?", ["Ultra Fiesta Mango","Monster","Red Bull","TNT"]],
+    ["Qual é o lugar favorito do Murilo pra comer?", ["Cafeterias","Fast food","Rodízio","Pizzaria"]],
+    ["Qual é o app de música favorito do Murilo?", ["Spotify","YouTube Music","Deezer","Apple Music"]],
+    ["Qual é o horário favorito do Murilo no dia?", ["10h00","6h00","15h00","21h00"]],
+    ["Qual é o clima favorito do Murilo?", ["Chuva","Sol forte","Nublado","Neve"]],
+    ["Qual fruta o Murilo não come de jeito nenhum?", ["Nenhuma, ele come todas","Banana","Abacate","Melancia"]],
+    ["Qual é o segundo anime favorito do Murilo, depois de One Piece?", ["Yo-kai Watch","Pokémon","Digimon","Bleach"]],
+    ["Qual é o arco favorito do Murilo em One Piece?", ["Skypiea","Marineford","Alabasta","Water 7"]],
+    ["Qual é o personagem favorito do Murilo em Gravity Falls?", ["Bill Cipher","Dipper","Mabel","Stan"]],
+    ["Qual é o filme de animação favorito do Murilo, além de Detona Ralph?", ["Steven Universo: O Filme","Procurando Nemo","Shrek 2","Lilo & Stitch"]],
+    ["Qual série o Murilo já assistiu mais de uma vez?", ["Gravity Falls","Bridgerton","One Piece","Hora de Aventura"]],
+    ["Quem mais inspira o Murilo?", ["Ele mesmo","Um professor","Um streamer","Um amigo"]],
+    ["Qual é o boss favorito do Murilo em Terraria?", ["Duke Fishron","Moon Lord","Olho de Cthulhu","Wall of Flesh"]],
+    ["Qual é o jogo mais difícil que o Murilo já zerou?", ["Elden Ring","Dark Souls","Celeste","Hollow Knight"]],
+    ["Qual é o personagem favorito do Murilo em jogos?", ["Lamb, de Cult of the Lamb","Sans","Link","Mario"]],
+    ["Qual é a trilha sonora de jogo favorita do Murilo?", ["Cult of the Lamb","Hollow Knight","Terraria","Stardew Valley"]],
+    ["Qual é o console favorito do Murilo?", ["Nintendo Switch","PlayStation 5","Xbox 360","Wii"]],
+    ["Qual é o jogo de terror favorito do Murilo?", ["Phasmophobia","Five Nights at Freddy's","Resident Evil 4","Outlast"]],
+    ["Qual é o jogo favorito do Murilo pra jogar com amigos?", ["Lethal Company","Among Us","Fall Guys","Overcooked"]],
+    ["Qual era o jogo favorito do Murilo na infância?", ["Roblox","Club Penguin","Mario Kart Wii","Plants vs Zombies"]],
+    ["Qual é o streamer de jogos favorito do Murilo?", ["Ycro","Gaules","Alanzoka","Cellbit"]],
+    ["Qual jogo o Murilo mais quer jogar e ainda não jogou?", ["Minecraft Dungeons 2","Hades II","Silksong","GTA VI"]],
+    ["Qual é o jogo indie favorito do Murilo?", ["Undertale","Celeste","Hades","Cuphead"]],
+    ["Qual jogo o Murilo tem mais horas na Steam?", ["Terraria","Lethal Company","Elden Ring","Phasmophobia"]]
+  ];
+
+  const $ = id => document.getElementById(id);
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const TIME = 5, ROUNDS = 50, REVEAL = 3200, SPEED = 230;
+  const sayRight = ["Argh! Como você sabia?!", "Tá, tá... acertou.", "Hmpf! Sorte de principiante!", "Nyaa?! Você anda estudando o Murilo?", "Tá bom, tá bom, um ponto pra você!", "Hmm, até que você é esperto, miau.", "Opa! Essa passou raspando!", "Magia do amor?! Não, foi só sorte!", "Quem te contou?! Foi o Murilo?!", "Isso não vale... ou vale?"];
+  const sayWrong = ["Hihihi! Errou!", "Nyaa~! Essa era fácil!", "Tic-tac... e você errou!", "Ohoho! Quase... só que não!", "Miau miau! Essa foi feia!", "Nem a minha magia salva essa resposta!", "Errou! Vou ficar com seus pontos, hihi!", "Essa você devia saber, hein?", "Awn, tão perto... tão longe!", "Que pena, querido... ou não!"];
+  const sayNone = ["Nem escolheu nada?! Hihihi!", "O tempo acabou e o coração tava perdido!", "Parado no meio do nada? Conta como erro, miau!", "Você dormiu no meio da pergunta?!", "Cadê o coração, querido? Hihi!"];
+  const sayStreak = ["Três seguidas?! Tá me assustando, miau!", "Você tá numa sequência perigosa!", "Quem é você e o que fez com o fã de araque?!", "Para de acertar! Isso é covardia!"];
+  const leadIns = ["Atenção, querido! ", "Prepare o coração! ", "Hihi, essa vale ponto! ", "Miau~ Escuta só: ", "Lá vai! ", "Sem pressa... só que não! ", "Olha a pergunta! "];
+  const endHigh = ["Miau! Você conhece mesmo o Murilo, parabéns!", "Uau! Você é fã de carteirinha do Murilo!", "Nyaa! Eu perdi o programa pra você!"];
+  const endMid = ["Nada mal! Mas dá pra melhorar, miau~", "Você sabe o básico, mas ainda falta um pouco!", "Metade você sabe, metade você chutou, hihi!"];
+  const endLow = ["Hihihi! Você precisa conhecer melhor o Murilo!", "Nyaa~ Volte quando for mais amigo dele!", "Ohoho! Nem o coração te ajudou dessa vez!"];
+  const reactRight = ["angry", "embarrassed", "crying"];
+
+  const music = $("music");
+  music.volume = 0.45;
+  const sfx = { ok: new Audio("sfx/acerto.mp3"), bad: new Audio("sfx/erro.mp3"), laugh: new Audio("sfx/risada.mp3"), next: new Audio("sfx/proxima.mp3") };
+  const blips = Array.from({ length: 4 }, () => new Audio("sfx/texto.wav"));
+  let bi = 0;
+  const play = a => { if (music.muted) return; a.currentTime = 0; a.play().catch(() => {}); };
+  const blip = () => { if (music.muted) return; const a = blips[bi++ % blips.length]; a.currentTime = 0; a.volume = 0.6; a.play().catch(() => {}); };
+
+  const shuffle = a => {
+    a = [...a];
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+
+  // Texto da Mew Mew: letra por letra, com o som de texto
+  let typeTok = 0;
+  function typeText(str) {
+    const tok = ++typeTok, el = $("bubble");
+    el.textContent = "";
+    const m = $("measure"); m.textContent = str;
+    el.style.width = Math.ceil(m.getBoundingClientRect().width) + "px";
+    return new Promise(res => {
+      let i = 0;
+      (function step() {
+        if (tok !== typeTok) return res(false);
+        if (i >= str.length) return res(true);
+        const ch = str[i++];
+        el.textContent += ch;
+        if (ch.trim() && i % 2) blip();
+        setTimeout(step, ".?!,".includes(ch) ? 170 : 32);
+      })();
+    });
+  }
+  const setMew = n => { $("mew").src = "img/mewmew-" + n + ".gif"; };
+
+  // Troca de pergunta: só o somzinho curto de "mudar de canal"
+  async function transition(mid) {
+    play(sfx.next);
+    await sleep(250);
+    mid();
+    await sleep(250);
+  }
+
+  // ---- Arena: coração livre ----
+  const arena = $("arena"), heartEl = $("heart");
+  let deck = [], idx = 0, hits = 0, streak = 0, phase = "idle", rid = 0, tm = null;
+  let hx = 0, hy = 0, W = 0, H = 0, rects = [], cellEls = [], curSel = -1, keys = {}, lastTs = 0;
+
+  function layout() {
+    const ar = arena.getBoundingClientRect();
+    W = ar.width - 12; H = ar.height - 12; // desconta a borda
+    rects = cellEls.map(c => { const r = c.getBoundingClientRect(); return { l: r.left - ar.left - 6, t: r.top - ar.top - 6, r: r.right - ar.left - 6, b: r.bottom - ar.top - 6 }; });
+  }
+  const placeHeart = () => { heartEl.style.transform = "translate(" + (hx - 12) + "px," + (hy - 12) + "px)"; };
+  const under = () => rects.findIndex(r => hx >= r.l && hx <= r.r && hy >= r.t && hy <= r.b);
+  function refreshSel() {
+    const s = under();
+    if (s !== curSel) { curSel = s; cellEls.forEach((c, n) => c.classList.toggle("sel", n === s)); }
+  }
+  const movable = () => phase === "typing" || phase === "timer";
+
+  function loop(ts) {
+    const dt = Math.min((ts - lastTs) / 1000, 0.05); lastTs = ts;
+    if (movable()) {
+      const dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), dy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+      if (dx || dy) {
+        const n = Math.hypot(dx, dy);
+        hx = Math.min(Math.max(hx + dx / n * SPEED * dt, 12), W - 12);
+        hy = Math.min(Math.max(hy + dy / n * SPEED * dt, 12), H - 12);
+        placeHeart(); refreshSel();
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  const dirs = { arrowleft: "left", a: "left", arrowright: "right", d: "right", arrowup: "up", w: "up", arrowdown: "down", s: "down" };
+  document.addEventListener("keydown", e => {
+    const k = e.key.toLowerCase();
+    if (dirs[k] && !$("game").classList.contains("hidden")) { keys[dirs[k]] = true; e.preventDefault(); }
+    else if ((k === "enter" || k === "z") && phase === "timer") lock();
+  });
+  document.addEventListener("keyup", e => { const k = dirs[e.key.toLowerCase()]; if (k) keys[k] = false; });
+  window.addEventListener("blur", () => { keys = {}; });
+  window.addEventListener("resize", () => { if (phase !== "idle") { layout(); refreshSel(); } });
+  function pointerMove(e) {
+    if (!movable() || (e.pointerType !== "mouse" && e.buttons === 0 && e.type !== "pointerdown")) return;
+    const ar = arena.getBoundingClientRect();
+    hx = Math.min(Math.max(e.clientX - ar.left - 6, 12), W - 12);
+    hy = Math.min(Math.max(e.clientY - ar.top - 6, 12), H - 12);
+    placeHeart(); refreshSel();
+  }
+  arena.addEventListener("pointermove", pointerMove);
+  arena.addEventListener("pointerdown", pointerMove);
+
+  // ---- Rodadas ----
+  function renderRound() {
+    const item = deck[idx];
+    phase = "wait"; curSel = -1;
+    $("round").textContent = (idx + 1) + "/" + deck.length;
+    $("hits").textContent = hits;
+    $("bar").style.width = "100%"; $("sec").textContent = TIME;
+    const box = $("cells");
+    box.className = "cells";
+    box.style.gridTemplateRows = item.opts.length === 2 ? "1fr" : "1fr 1fr";
+    box.innerHTML = "";
+    cellEls = item.opts.map((o, i) => {
+      const c = document.createElement("div");
+      c.className = "cell";
+      c.innerHTML = "<b>" + "ABCD"[i] + ".</b><span></span>";
+      c.lastChild.textContent = o.t;
+      box.appendChild(c);
+      return c;
+    });
+    $("game").classList.remove("hidden");
+    layout();
+    if (idx === 0) { hx = W / 2; hy = H / 2; }
+    hx = Math.min(Math.max(hx, 12), W - 12); hy = Math.min(Math.max(hy, 12), H - 12);
+    placeHeart(); refreshSel();
+    setMew("battle");
+    $("bubble").textContent = "";
+  }
+
+  async function runRound() {
+    const my = ++rid;
+    phase = "typing";
+    const last = idx === deck.length - 1;
+    const lead = last ? "Última pergunta! " : idx === Math.floor(deck.length / 2) - 1 ? "Metade do caminho, miau! " : Math.random() < 0.4 ? pick(leadIns) : "";
+    const done = await typeText(lead + deck[idx].q);
+    if (!done || my !== rid) return;
+    phase = "timer";
+    let t = TIME;
+    clearInterval(tm);
+    tm = setInterval(() => {
+      t -= 0.1;
+      $("bar").style.width = Math.max(t / TIME * 100, 0) + "%";
+      $("sec").textContent = Math.max(Math.ceil(t), 0);
+      if (t <= 0) lock();
+    }, 100);
+  }
+
+  async function lock() {
+    if (phase !== "timer") return;
+    phase = "reveal";
+    clearInterval(tm);
+    const my = rid, item = deck[idx], chosen = under();
+    const ok = chosen >= 0 && item.opts[chosen].ok;
+    cellEls.forEach((c, n) => {
+      c.classList.remove("sel");
+      if (item.opts[n].ok) c.classList.add("correct");
+      else if (n === chosen) c.classList.add("wrong");
+    });
+    if (ok) { hits++; streak++; } else streak = 0;
+    $("hits").textContent = hits;
+    play(ok ? sfx.ok : sfx.bad);
+    if (!ok) play(sfx.laugh);
+    setMew(ok ? pick(reactRight) : "laugh");
+    const t0 = Date.now();
+    await typeText(pick(chosen < 0 ? sayNone : ok ? (streak >= 3 && Math.random() < 0.6 ? sayStreak : sayRight) : sayWrong));
+    await sleep(Math.max(REVEAL - (Date.now() - t0), 300));
+    if (my !== rid) return;
+    idx++;
+    if (idx >= deck.length) return finish();
+    await transition(renderRound);
+    runRound();
+  }
+
+  function finish() {
+    phase = "end"; rid++;
+    const pct = hits / deck.length * 100;
+    $("final").textContent = hits + "/" + deck.length;
+    setMew(pct >= 70 ? "overjoyed" : pct >= 40 ? "embarrassed" : "laugh");
+    $("game").classList.add("hidden");
+    $("end").classList.remove("hidden");
+    typeText(pick(pct >= 70 ? endHigh : pct >= 40 ? endMid : endLow));
+  }
+
+  async function start() {
+    // Sorteia ROUNDS perguntas entre as 100 a cada partida (e embaralha as alternativas).
+    deck = shuffle(Q).slice(0, ROUNDS).map(([q, o]) => ({ q, opts: shuffle(o.map((t, i) => ({ t, ok: i === 0 }))) }));
+    idx = 0; hits = 0; streak = 0;
+    $("start").classList.add("hidden");
+    $("end").classList.add("hidden");
+    await transition(renderRound);
+    runRound();
+  }
+
+  // Plateia: aparece e some em momentos da música (em segundos): 0:41-1:17 e 2:16-2:47
+  const CROWD_WINDOWS = [[41, 77], [136, 167]];
+  function buildCrowd() {
+    const vw = innerWidth, top = [], bot = [];
+    const tilt = [[-30, -10], [-5, 15], [-20, 5], [5, 25]];  // inclinações dos bastões do topo
+    for (let x = 0, i = 0; x < vw + 60; x += 84, i++) {
+      const b = (i % 2) * -0.5, t = tilt[i % 4];
+      top.push('<i class="d dm" style="left:' + x + 'px;--b:' + b + 's"></i>');
+      top.push('<i class="d db" style="left:' + (x + 34) + 'px;--b:' + b + 's;--r1:' + t[0] + 'deg;--r2:' + t[1] + 'deg"></i>');
+    }
+    for (let x = -30, i = 0; x < vw + 60; x += 100, i++) {
+      const b = (i % 2) * -0.5;
+      bot.push('<i class="d cab" style="left:' + x + 'px;--f:' + (-(i % 8) * 0.15) + 's;--b:' + b + 's"></i>');
+      bot.push('<i class="d bas" style="left:' + (x + 62) + 'px;--f:' + (-(i % 4) * 0.2) + 's;--b:' + b + 's"></i>');
+    }
+    $("crowdTop").innerHTML = top.join("");
+    $("crowdBottom").innerHTML = bot.join("");
+  }
+  function crowdTick() {
+    const t = music.currentTime;
+    const on = !music.paused && CROWD_WINDOWS.some(([a, b]) => t >= a && t < b);
+    $("crowdTop").classList.toggle("on", on);
+    $("crowdBottom").classList.toggle("on", on);
+  }
+  buildCrowd();
+  let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(buildCrowd, 200); });
+  ["timeupdate", "pause", "play", "seeked"].forEach(ev => music.addEventListener(ev, crowdTick));
+
+  music.addEventListener("loadeddata", () => $("muteBtn").classList.remove("hidden"));
+  $("muteBtn").onclick = () => { music.muted = !music.muted; $("muteBtn").textContent = "MÚSICA: " + (music.muted ? "OFF" : "ON"); };
+  typeText("Miau~! Chegou a hora do quiz!");
+  $("startBtn").onclick = () => { music.play().catch(() => {}); start(); };
+  $("restartBtn").onclick = () => { phase = "idle"; setMew("battle"); typeText("Miau~! Quer tentar de novo?"); $("end").classList.add("hidden"); $("start").classList.remove("hidden"); };
+</script>
+</body>
+</html>
